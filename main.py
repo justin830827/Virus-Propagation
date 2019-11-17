@@ -59,7 +59,53 @@ def plot_static(strength, param_name, title):
     plt.xlabel(param_name)
     plt.ylabel('Effective Strength')
     plt.axhline(y=1, linewidth=2, color='r')
-    plt.savefig('{}.png'.format(title), bbox_inches='tight')
+    plt.savefig('results/{}.png'.format(title), bbox_inches='tight')
+    plt.close()
+
+
+def simulation(g, beta, delta, adj, t=100):
+    total_node = nx.number_of_nodes(g)
+    c = int(total_node/10)
+    infect = [False for _ in range(total_node)]
+    infect_ind = []
+    while len(infect_ind) < c:
+        r = random.randint(0, total_node-1)
+        if infect[r] == False:
+            infect[r] = True
+            infect_ind.append(r)
+
+    infect_num = []
+    infect_num.append(len(infect_ind))
+
+    for i in range(t):
+        cur_infect = set()
+        cur_cure = []
+        for inf in infect_ind:
+            for j in range(len(adj[inf])):
+                if adj[inf][j] == 1 and float(random.randint(1, 10))/10 < beta:
+                    cur_infect.add(j)
+            if float(random.randint(1, 10))/10 < delta:
+                cur_cure.append(inf)
+            else:
+                cur_infect.add(inf)
+
+        for node in cur_cure:
+            infect[node] = False
+        for node in cur_infect:
+            infect[node] = True
+        infect_num.append(len(cur_infect))
+        infect_ind = cur_infect
+    return infect_num
+
+
+def plot_simulation(series, total_node, title):
+    series = np.array(series) / total_node
+    series = np.mean(series, axis=0)
+    plt.plot(series)
+    plt.title(title)
+    plt.xlabel('Times')
+    plt.ylabel('Avg. fraction of infected nodes')
+    plt.savefig('results/{}.png'.format(title), bbox_inches='tight')
     plt.close()
 
 
@@ -74,7 +120,7 @@ def compute_strength(g):
     eigenvalue, eigenvector = np.linalg.eig(adj)
     eig_set = [(eigenvalue[i], eigenvector[i]) for i in range(len(eigenvalue))]
     eig_set = sorted(eig_set, key=lambda x: x[0], reverse=1)
-    return eig_set
+    return eig_set, adj
 
 
 def main():
@@ -89,7 +135,8 @@ def main():
             g.add_edge(int(line[0]), int(line[1]))
 
     # Part 1: calculate the effective strength (s)
-    eigen_set = compute_strength(g)
+    total_node = nx.number_of_nodes(g)
+    eigen_set, adj_matrix = compute_strength(g)
 
     # a. Evaluate infection spread across the network
     largest_eigenvalue = eigen_set[0][0].real
@@ -131,6 +178,27 @@ def main():
         fixed_beta2_max_delta, beta2))
     plot_static(fixed_beta2_strength, 'Beta',
                 'Strength vs varying delta with beta = {}'.format(beta2))
+
+    # Part 2: Simulates the propagation of virus with the SIS VPM
+    print('Simulating the virus propagation with β = {}, δ = {}.........'.format(
+        beta1, delta1))
+    # beta1 and delta1 results
+    first_series = []
+    for i in range(10):
+        res = simulation(g, beta1, delta1, adj_matrix)
+        first_series.append(res)
+    plot_simulation(first_series, total_node, 'Simulation with β = {} and δ = {}'.format(
+        beta1, delta1))
+
+    print('Simulating the virus propagation with β = {}, δ = {}.........\n'.format(
+        beta2, delta2))
+    # beta2 and delta2 results
+    second_series = []
+    for i in range(10):
+        res = simulation(g, beta2, delta2, adj_matrix)
+        second_series.append(res)
+    plot_simulation(second_series, total_node, 'Simulation with β = {} and δ = {}'.format(
+        beta2, delta2))
 
 
 if __name__ == "__main__":
