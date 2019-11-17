@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[91]:
 
 
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 import random
+from copy import copy, deepcopy
+from operator import itemgetter
 
 
 # In[2]:
@@ -42,13 +44,13 @@ eig_set=[(eigenvalue[i],eigenvector[i]) for i in range(len(eigenvalue))]
 eig_set=sorted(eig_set,key=lambda x:x[0],reverse=1)
 
 
+# In[20]:
+
+
+
+
+
 # In[4]:
-
-
-print(eig_set)
-
-
-# In[5]:
 
 
 beta1=0.2
@@ -59,7 +61,7 @@ Cvpm1=beta1/delta1
 Cvpm2=beta2/delta2
 
 
-# In[6]:
+# In[5]:
 
 
 largest_eigenvalue=eig_set[0][0].real
@@ -71,7 +73,7 @@ s2=largest_eigenvalue*Cvpm2
 print(s2)
 
 
-# In[7]:
+# In[6]:
 
 
 static_delta1=[]
@@ -94,7 +96,7 @@ plt.plot(static_delta1)
 plt.show()
 
 
-# In[8]:
+# In[7]:
 
 
 static_beta1=[]
@@ -114,7 +116,7 @@ plt.plot(static_beta1)
 plt.show()
 
 
-# In[9]:
+# In[8]:
 
 
 static_delta2=[]
@@ -134,7 +136,7 @@ plt.plot(static_delta2)
 plt.show()
 
 
-# In[10]:
+# In[9]:
 
 
 static_beta2=[]
@@ -156,7 +158,7 @@ plt.plot(static_beta2)
 plt.show()
 
 
-# In[11]:
+# In[10]:
 
 
 c=int(total_node/10)
@@ -197,7 +199,7 @@ def simulate(beta,delta,adj,t,c):
                 
 
 
-# In[12]:
+# In[11]:
 
 
 
@@ -212,7 +214,7 @@ plt.plot(first_series)
 plt.show()
 
 
-# In[13]:
+# In[12]:
 
 
 second_series=[]
@@ -226,7 +228,7 @@ plt.plot(second_series)
 plt.show()
 
 
-# In[14]:
+# In[13]:
 
 
 def policyA(beta,delta,adj,t,c,k):
@@ -275,7 +277,7 @@ def policyA(beta,delta,adj,t,c,k):
     
 
 
-# In[28]:
+# In[14]:
 
 
 adjA=[[0 for _ in range(total_node)] for _ in range(total_node)]
@@ -301,7 +303,7 @@ sA=largest_eigenvalueA*Cvpm1
 print(sA)
 
 
-# In[ ]:
+# In[18]:
 
 
 
@@ -320,25 +322,28 @@ def immunA(k,adj):
 
 static_beta_delta_A=[]
 flag=0
-for i in range(1,1001):
-    new_adj=immunA(i,adj)
+for i in range(200,1001,50):
+    tmp = deepcopy(adj)
+    new_adj=immunA(i,tmp)
     val, vec = np.linalg.eig(new_adj)
     e=[(val[i],vec[i]) for i in range(len(val))]
     e=sorted(e,key=lambda x:x[0],reverse=1)
     le=e[0][0].real
     strength=le*Cvpm1
+    #print(strength)
     if strength<1 and flag==0:
         print (i)
         flag=1
+        break
     static_beta_delta_A.append(strength)
 
-threshold = np.array([1 for i in range(1000)])
+threshold = np.array([1 for i in range(len(static_beta_delta_A))])
 plt.plot(threshold, 'r--') 
 plt.plot(static_beta_delta_A)
 plt.show()
 
 
-# In[15]:
+# In[17]:
 
 
 policy_A=[]
@@ -352,24 +357,39 @@ plt.plot(policy_A)
 plt.show()
 
 
-# In[16]:
+# In[85]:
 
 
 def policyB(beta,delta,adj,t,c,k,g):
+    
+    infect=[False for _ in range(total_node)]
+    infect_ind=set()
+    while len(infect_ind)<c:
+        r=random.randint(0, total_node-1)
+        if infect[r]==False:
+            infect[r]=True
+            infect_ind.add(r)
+    
+    
+    
     immun=set()
     degree=sorted(list(g.degree()),key=lambda x:x[1],reverse=1)
     for i in range(k):
         immun.add(degree[i][0])
-        
+    tmp_g=nx.Graph(g)
+    for i in immun:
+        tmp_g.remove_node(i)
+    
+    adjB=[[0 for _ in range(total_node)] for _ in range(total_node)]
+    for i in nx.edges(tmp_g):
+        adjB[i[0]][i[1]]=1
+        adjB[i[1]][i[0]]=1
+    for i in immun:
+        if i in infect_ind:
+            infect[i]=False
+            infect_ind.remove(i)
     
     
-    infect=[False for _ in range(total_node)]
-    infect_ind=[]
-    while len(infect_ind)<c:
-        r=random.randint(0, total_node-1)
-        if infect[r]==False and r not in immun:
-            infect[r]=True
-            infect_ind.append(r)
 
     infect_num=[]
     infect_num.append(len(infect_ind))
@@ -377,15 +397,15 @@ def policyB(beta,delta,adj,t,c,k,g):
     #print(immun)
     for i in range(t):
         cur_infect=set()
-        cur_cure=[]
+        cur_cure=set()
         #print(set(infect_ind).intersection(immun))
         for inf in infect_ind:
             #print(inf)
             for j in range(len(adj[inf])):
-                if adj[inf][j]==1 and float(random.randint(1, 10))/10<beta and j not in immun:
+                if adjB[inf][j]==1 and random.random()<beta and j not in immun:
                     cur_infect.add(j)
-            if float(random.randint(1, 10))/10<delta:
-                cur_cure.append(inf)
+            if random.random()<delta:
+                cur_cure.add(inf)
             else:
                 cur_infect.add(inf)
         
@@ -401,7 +421,75 @@ def policyB(beta,delta,adj,t,c,k,g):
     
 
 
-# In[17]:
+# In[71]:
+
+
+
+immun=set()
+degree=sorted(list(g.degree()),key=lambda x:x[1],reverse=1)
+for i in range(200):
+ immun.add(degree[i][0])
+tmp_g=nx.Graph(g)
+for i in immun:
+ tmp_g.remove_node(i)
+
+adjB=[[0 for _ in range(total_node)] for _ in range(total_node)]
+for i in nx.edges(tmp_g):
+ adjB[i[0]][i[1]]=1
+ adjB[i[1]][i[0]]=1
+
+#print(len(nx.edges(tmp_g)))
+#print(sorted(list(tmp_g.degree()),key=lambda x:x[1],reverse=1))
+     
+eigenvalueB, eigenvectorB = np.linalg.eig(adjB)
+eig_setB=[(eigenvalueB[i],eigenvectorB[i]) for i in range(len(eigenvalueB))]
+eig_setB=sorted(eig_setB,key=lambda x:x[0],reverse=1)
+
+largest_eigenvalueB=eig_setB[0][0].real
+
+sB=largest_eigenvalueB*Cvpm1
+print(sB)
+
+
+# In[40]:
+
+
+def immunB(k,adj,g):
+    
+    immun=set()
+    degree=sorted(list(g.degree()),key=lambda x:x[1],reverse=1)
+    for i in range(k):
+        immun.add(degree[i][0])
+    
+    for node in immun:    
+        for i in range(len(adj[node])):
+            adj[node][i]=0
+            adj[i][node]=0
+    return adj
+
+static_beta_delta_B=[]
+flag=0
+for i in range(200,1001,50):
+    tmp = deepcopy(adj)
+    new_adj=immunB(i,tmp,g)
+    val, vec = np.linalg.eig(new_adj)
+    e=[(val[i],vec[i]) for i in range(len(val))]
+    e=sorted(e,key=lambda x:x[0],reverse=1)
+    le=e[0][0].real
+    strength=le*Cvpm1
+    #print(strength)
+    if strength<1 and flag==0:
+        print (i)
+        flag=1
+    static_beta_delta_B.append(strength)
+
+threshold = np.array([1 for i in range(len(static_beta_delta_B))])
+plt.plot(threshold, 'r--') 
+plt.plot(static_beta_delta_B)
+plt.show()
+
+
+# In[86]:
 
 
 policy_B=[]
@@ -415,7 +503,7 @@ plt.plot(policy_B)
 plt.show()
 
 
-# In[31]:
+# In[75]:
 
 
 def policyC(beta,delta,adj,t,c,k,g):
@@ -464,17 +552,257 @@ def policyC(beta,delta,adj,t,c,k,g):
     
 
 
-# In[32]:
+# In[80]:
+
+
+tmp_g=nx.Graph(g)
+immun=set()
+while len(immun)<200:
+    degree=sorted(list(tmp_g.degree()),key=lambda x:x[1],reverse=1)
+    immun.add(degree[0][0])
+    tmp_g.remove_node(degree[0][0])
+
+
+
+adjC=[[0 for _ in range(total_node)] for _ in range(total_node)]
+for i in nx.edges(tmp_g):
+    adjC[i[0]][i[1]]=1
+    adjC[i[1]][i[0]]=1
+
+
+
+eigenvalueC, eigenvectorC = np.linalg.eig(adjC)
+eig_setC=[(eigenvalueC[i],eigenvectorC[i]) for i in range(len(eigenvalueC))]
+eig_setC=sorted(eig_setC,key=lambda x:x[0],reverse=1)
+
+largest_eigenvalueC=eig_setC[0][0].real
+
+sC=largest_eigenvalueC*Cvpm1
+print(sC)
+
+
+# In[74]:
+
+
+def immunC(k,adj,g):
+    immun=set()
+    tmp_g=nx.Graph(g)
+    while len(immun)<k:
+        degree=sorted(list(tmp_g.degree()),key=lambda x:x[1],reverse=1)
+        immun.add(degree[0][0])
+        tmp_g.remove_node(degree[0][0])
+    
+    adjC=[[0 for _ in range(total_node)] for _ in range(total_node)]
+    for i in nx.edges(tmp_g):
+        adjC[i[0]][i[1]]=1
+        adjC[i[1]][i[0]]=1
+    return adjC
+
+static_beta_delta_C=[]
+flag=0
+for i in range(50,1001,10):
+    tmp = deepcopy(adj)
+    new_adj=immunC(i,tmp,g)
+    val, vec = np.linalg.eig(new_adj)
+    e=[(val[i],vec[i]) for i in range(len(val))]
+    e=sorted(e,key=lambda x:x[0],reverse=1)
+    le=e[0][0].real
+    strength=le*Cvpm1
+    #print(strength)
+    if strength<1 and flag==0:
+        print (i)
+        flag=1
+    static_beta_delta_C.append(strength)
+
+threshold = np.array([1 for i in range(len(static_beta_delta_C))])
+plt.plot(threshold, 'r--') 
+plt.plot(static_beta_delta_C)
+plt.show()
+
+
+# In[76]:
 
 
 policy_C=[]
 for i in range(10):
-    res=policyC(beta1,delta1,adj,t,c,200,g)
+    G = nx.Graph(g)
+    res=policyC(beta1,delta1,adj,t,c,200,G)
     policy_C.append(res)
 policy_C=np.array(policy_C)
 policy_C=np.mean(policy_C, axis=0)
 #print(policy_A)
 plt.plot(policy_C)
+plt.show()
+
+
+# In[104]:
+
+
+def policyD(beta,delta,adj,t,c,k,g,immun):
+    
+    infect=[False for _ in range(total_node)]
+    infect_ind=set()
+    while len(infect_ind)<c:
+        r=random.randint(0, total_node-1)
+        if infect[r]==False:
+            infect[r]=True
+            infect_ind.add(r)
+    
+    
+    
+    
+    #print(len(immun),len(infect_ind))
+    immun=set(immun)
+    
+    for inode in immun:
+        if inode in infect_ind:
+            infect[inode]=False
+            infect_ind.remove(inode)
+        
+
+    
+
+    infect_num=[]
+    infect_num.append(len(infect_ind))
+    #print(set(infect_ind).intersection(immun))
+    #print(immun)
+    for i in range(t):
+        cur_infect=set()
+        cur_cure=set()
+        #print(set(infect_ind).intersection(immun))
+        for inf in infect_ind:
+            #print(inf)
+            for j in range(len(adj[inf])):
+                if adj[inf][j]==1 and random.random()<beta and j not in immun:
+                    cur_infect.add(j)
+            if random.random()<delta:
+                cur_cure.add(inf)
+            else:
+                cur_infect.add(inf)
+        
+        for node in cur_cure:
+            infect[node]=False
+        for node in cur_infect:
+            infect[node]=True
+        infect_num.append(len(cur_infect))
+        infect_ind=cur_infect
+        #print(i,len(infect_ind))
+    return infect_num
+    
+
+
+# In[110]:
+
+
+val, vec = np.linalg.eig(adj)
+eig_set=[(val[i],vec[i]) for i in range(len(val))]
+eig_set=sorted(eig_set,key=lambda x:x[0],reverse=1)
+largest_vec=eig_set[0][1]
+largest_vec=np.absolute(largest_vec)
+immun = [u[0] for u in sorted(enumerate(largest_vec), reverse = True, key = itemgetter(1))[:200]]
+immun=set(immun)
+
+adjD=[[0 for _ in range(total_node)] for _ in range(total_node)]
+for i in nx.edges(g):
+    adjD[i[0]][i[1]]=1
+    adjD[i[1]][i[0]]=1
+for i in range(len(adjD)):
+    if i in immun:
+        for j in range(len(adjD[i])):
+            adjD[i][j]=0
+            adjD[j][i]=0
+        
+        
+               
+               
+
+
+eigenvalueD, eigenvectorD = np.linalg.eig(adjD)
+eig_setD=[(eigenvalueD[i],eigenvectorD[i]) for i in range(len(eigenvalueD))]
+eig_setD=sorted(eig_setD,key=lambda x:x[0],reverse=1)
+
+largest_eigenvalueD=eig_setD[0][0].real
+
+sD=largest_eigenvalueD*Cvpm1
+print(sD)
+
+
+# In[106]:
+
+
+def immunD(adj,k):
+    val, vec = np.linalg.eig(adj)
+    eig_set=[(val[i],vec[i]) for i in range(len(val))]
+    eig_set=sorted(eig_set,key=lambda x:x[0],reverse=1)
+    largest_vec=eig_set[0][1]
+    largest_vec=np.absolute(largest_vec)
+    immun = [u[0] for u in sorted(enumerate(largest_vec), reverse = True, key = itemgetter(1))[:k]]
+    return immun
+
+
+# In[ ]:
+
+
+
+
+
+# In[111]:
+
+
+val, vec = np.linalg.eig(adj)
+eig_set=[(val[i],vec[i]) for i in range(len(val))]
+eig_set=sorted(eig_set,key=lambda x:x[0],reverse=1)
+largest_vec=eig_set[0][1]
+largest_vec=np.absolute(largest_vec)
+
+def immuneD(k,adj,g,vec):
+    target=[u[0] for u in sorted(enumerate(vec), reverse = True, key = itemgetter(1))[:k]]
+    tmp_g=nx.Graph(g)
+    for i in target:
+        tmp_g.remove_node(i)
+    adjD=[[0 for _ in range(total_node)] for _ in range(total_node)]
+    for i in nx.edges(tmp_g):
+        adjD[i[0]][i[1]]=1
+        adjD[i[1]][i[0]]=1
+    return adjD
+
+
+
+static_beta_delta_D=[]
+flag=0
+for i in range(50,1001,50):
+    tmp = deepcopy(adj)
+    new_adj=immuneD(i,tmp,g,largest_vec)
+    val, vec = np.linalg.eig(new_adj)
+    e=[(val[i],vec[i]) for i in range(len(val))]
+    e=sorted(e,key=lambda x:x[0],reverse=1)
+    le=e[0][0].real
+    strength=le*Cvpm1
+    #print(strength)
+    if strength<1 and flag==0:
+        print (i)
+        flag=1
+    static_beta_delta_D.append(strength)
+
+threshold = np.array([1 for i in range(len(static_beta_delta_D))])
+plt.plot(threshold, 'r--') 
+plt.plot(static_beta_delta_D)
+plt.show()
+
+
+# In[107]:
+
+
+policy_D=[]
+imd=immunD(adj,200)
+for i in range(10):
+    G = nx.Graph(g)
+    res=policyD(beta1,delta1,adj,t,c,200,G,imd)
+    policy_D.append(res)
+policy_D=np.array(policy_D)
+policy_D=np.mean(policy_D, axis=0)
+
+plt.plot(policy_D)
 plt.show()
 
 
