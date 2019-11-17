@@ -1,6 +1,6 @@
 # Graph Data Mining
 
-This project 5 - Virus propagation
+This Project 5 - Virus propagation, Option 1: Virus Propagation on Static Networks
 
 ## Environment to test the script
 
@@ -32,7 +32,7 @@ Once the path is under `Virus-Propagation`, please run the command in following 
 python3 main.py
 ```
 
-After the program complete, the visuals will be store in `result/`, the program should run around 10 mins.
+After the program complete, the visuals will be store in `results/`, the program should run around 10 mins.
 
 ## Project Member:
 
