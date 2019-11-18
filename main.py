@@ -181,6 +181,47 @@ def policyD(adj, g, k=200):
     return adjD
 
 
+def find_k(adj, g, policy):
+    strengths = []
+    number_vaccines = []
+    step = 100
+    flag = 1
+    while flag:
+        number_vaccines.append(
+            step if not number_vaccines else number_vaccines[-1] + step)
+        k = number_vaccines[-1]
+        if policy == 'A':
+            new_adj = policyA(adj.copy(), g.copy(), k)
+        elif policy == 'B':
+            new_adj = policyB(adj.copy(), g.copy(), k)
+        elif policy == 'C':
+            new_adj = policyC(adj.copy(), g.copy(), k)
+        elif policy == 'D':
+            new_adj = policyD(adj.copy(), g.copy(), k)
+        else:
+            print("There is no policy {} in this functioon.".format(policy))
+            return
+        val, vec = np.linalg.eig(new_adj)
+        e = [(val[i], vec[i]) for i in range(len(val))]
+        e = sorted(e, key=lambda x: x[0], reverse=1)
+        le = e[0][0].real
+        strength = le * Cvpm1
+        if strength < 1:
+            flag = 0
+        strengths.append(strength)
+    return strengths, number_vaccines
+
+
+def plot_k(number_k, strengths, title):
+    plt.plot(number_k, strengths)
+    plt.title(title)
+    plt.xlabel('Number of vaccines (k)')
+    plt.ylabel('Effective Strength')
+    plt.axhline(y=1, linewidth=2, color='r')
+    plt.savefig('results/{}.png'.format(title), bbox_inches='tight')
+    plt.close()
+
+
 def main():
     # Read the data from file
     g = nx.Graph()
@@ -201,72 +242,72 @@ def main():
         adj[i[0]][i[1]] = 1
         adj[i[1]][i[0]] = 1
 
-    # # a. Evaluate infection spread across the network
-    # eigen_set = compute_eigen(adj)
-    # largest_eigenvalue = eigen_set[0][0].real
-    # s1 = largest_eigenvalue * Cvpm1
-    # s2 = largest_eigenvalue * Cvpm2
-    # print("Effective strengh with beta = {}, delta = {} is: {}".format(
-    #     beta1, delta1, s1))
-    # print("Effective strengh with beta = {}, delta = {} is: {}\n".format(
-    #     beta2, delta2, s2))
+    # a. Evaluate infection spread across the network
+    eigen_set = compute_eigen(adj)
+    largest_eigenvalue = eigen_set[0][0].real
+    s1 = largest_eigenvalue * Cvpm1
+    s2 = largest_eigenvalue * Cvpm2
+    print("Effective strengh with beta = {}, delta = {} is: {}".format(
+        beta1, delta1, s1))
+    print("Effective strengh with beta = {}, delta = {} is: {}\n".format(
+        beta2, delta2, s2))
 
-    # # b. Fix delta and evaluate bata affecting the effective strength
-    # # delta1 retuls
-    # fixed_delta1_min_beta, fixed_delta1_strength = static_delta(
-    #     largest_eigenvalue, delta1)
-    # print("Minimum transmission probability (β): {} with fixed delta = {}".format(
-    #     fixed_delta1_min_beta, delta1))
-    # plot_static(fixed_delta1_strength, 'Beta',
-    #             'Strength vs varying beta with delta = {}'.format(delta1))
-    # # delta2 retuls
-    # fixed_delta2_min_beta, fixed_delta2_strength = static_delta(
-    #     largest_eigenvalue, delta2)
-    # print("Minimum transmission probability (β): {} with fixed delta = {}\n".format(
-    #     fixed_delta2_min_beta, delta2))
-    # plot_static(fixed_delta2_strength, 'Beta',
-    #             'Strength vs varying beta with delta = {}'.format(delta2))
+    # b. Fix delta and evaluate bata affecting the effective strength
+    # delta1 retuls
+    fixed_delta1_min_beta, fixed_delta1_strength = static_delta(
+        largest_eigenvalue, delta1)
+    print("Minimum transmission probability (β): {} with fixed delta = {}".format(
+        fixed_delta1_min_beta, delta1))
+    plot_static(fixed_delta1_strength, 'Beta',
+                'Strength vs varying beta with delta = {}'.format(delta1))
+    # delta2 retuls
+    fixed_delta2_min_beta, fixed_delta2_strength = static_delta(
+        largest_eigenvalue, delta2)
+    print("Minimum transmission probability (β): {} with fixed delta = {}\n".format(
+        fixed_delta2_min_beta, delta2))
+    plot_static(fixed_delta2_strength, 'Beta',
+                'Strength vs varying beta with delta = {}'.format(delta2))
 
-    # # c. Fix beta and evaluate delta affecting the effective strength
-    # # beta1 results
-    # fixed_beta1_max_delta, fixed_beta1_strength = static_beta(
-    #     largest_eigenvalue, beta1)
-    # print("Maximum healing probability (δ): {} with fixed beta = {}".format(
-    #     fixed_beta1_max_delta, beta1))
-    # plot_static(fixed_beta1_strength, 'Beta',
-    #             'Strength vs varying delta with beta = {}'.format(beta1))
-    # # beta2 results
-    # fixed_beta2_max_delta, fixed_beta2_strength = static_beta(
-    #     largest_eigenvalue, beta2)
-    # print("Maximum healing probability (δ): {} with fixed beta = {}\n".format(
-    #     fixed_beta2_max_delta, beta2))
-    # plot_static(fixed_beta2_strength, 'Beta',
-    #             'Strength vs varying delta with beta = {}'.format(beta2))
+    # c. Fix beta and evaluate delta affecting the effective strength
+    # beta1 results
+    fixed_beta1_max_delta, fixed_beta1_strength = static_beta(
+        largest_eigenvalue, beta1)
+    print("Maximum healing probability (δ): {} with fixed beta = {}".format(
+        fixed_beta1_max_delta, beta1))
+    plot_static(fixed_beta1_strength, 'Beta',
+                'Strength vs varying delta with beta = {}'.format(beta1))
+    # beta2 results
+    fixed_beta2_max_delta, fixed_beta2_strength = static_beta(
+        largest_eigenvalue, beta2)
+    print("Maximum healing probability (δ): {} with fixed beta = {}\n".format(
+        fixed_beta2_max_delta, beta2))
+    plot_static(fixed_beta2_strength, 'Beta',
+                'Strength vs varying delta with beta = {}'.format(beta2))
 
     # # Part 2: Simulates the propagation of virus with the SIS VPM
-    # print('Simulating the virus propagation with β = {}, δ = {}.........'.format(
-    #     beta1, delta1))
-    # # beta1 and delta1 results
-    # first_series = []
-    # for i in range(10):
-    #     res = simulation(g, beta1, delta1, adj)
-    #     first_series.append(res)
-    # plot_simulation(first_series, total_node, 'Simulation with β = {} and δ = {}'.format(
-    #     beta1, delta1))
+    print('Simulating the virus propagation with β = {}, δ = {}.........'.format(
+        beta1, delta1))
+    # beta1 and delta1 results
+    first_series = []
+    for i in range(10):
+        res = simulation(g, beta1, delta1, adj)
+        first_series.append(res)
+    plot_simulation(first_series, total_node, 'Simulation with β = {} and δ = {}'.format(
+        beta1, delta1))
 
-    # print('Simulating the virus propagation with β = {}, δ = {}.........\n'.format(
-    #     beta2, delta2))
-    # # beta2 and delta2 results
-    # second_series = []
-    # for i in range(10):
-    #     res = simulation(g, beta2, delta2, adj)
-    #     second_series.append(res)
-    # plot_simulation(second_series, total_node, 'Simulation with β = {} and δ = {}'.format(
-    #     beta2, delta2))
+    print('Simulating the virus propagation with β = {}, δ = {}.........\n'.format(
+        beta2, delta2))
+    # beta2 and delta2 results
+    second_series = []
+    for i in range(10):
+        res = simulation(g, beta2, delta2, adj)
+        second_series.append(res)
+    plot_simulation(second_series, total_node, 'Simulation with β = {} and δ = {}'.format(
+        beta2, delta2))
 
     # Part 3:  Implements immunization policies
     # d. calculate the effective strength (s) of the virus on the immunized contact network
-    print("\n\nImmunization wiht Policy A.....................")
+    print("\nImmunization wiht Policy A.....................")
     adj_matrixA = policyA(adj.copy(), g.copy())
     eigen_set_A = compute_eigen(adj_matrixA)
     largest_eigenvalue_A = eigen_set_A[0][0].real
@@ -277,7 +318,7 @@ def main():
     print("Effective strengh of Policy A with beta = {}, delta = {} is: {}\n".format(
         beta2, delta2, sA_2))
 
-    print("\n\nImmunization wiht Policy B.....................")
+    # print("\nImmunization wiht Policy B.....................")
     adj_matrixB = policyB(adj.copy(), g.copy())
     eigen_set_B = compute_eigen(adj_matrixB)
     largest_eigenvalue_B = eigen_set_B[0][0].real
@@ -288,7 +329,7 @@ def main():
     print("Effective strengh of Policy B with beta = {}, delta = {} is: {}\n".format(
         beta2, delta2, sB_2))
 
-    print("\n\nImmunization wiht Policy C.....................")
+    # print("\nImmunization wiht Policy C.....................")
     adj_matrixC = policyC(adj.copy(), g.copy())
     eigen_set_C = compute_eigen(adj_matrixC)
     largest_eigenvalue_C = eigen_set_C[0][0].real
@@ -299,7 +340,7 @@ def main():
     print("Effective strengh of Policy C with beta = {}, delta = {} is: {}\n".format(
         beta2, delta2, sC_2))
 
-    print("\n\nImmunization wiht Policy D.....................")
+    # print("\nImmunization wiht Policy D.....................")
     adj_matrixD = policyD(adj.copy(), g.copy())
     eigen_set_D = compute_eigen(adj_matrixD)
     largest_eigenvalue_D = eigen_set_D[0][0].real
@@ -309,6 +350,56 @@ def main():
         beta1, delta1, sD_1))
     print("Effective strengh of Policy D with beta = {}, delta = {} is: {}\n".format(
         beta2, delta2, sD_2))
+
+    # e. find minimum number of vaccine k
+    print("Find minimum number of vaccine k for policy A......")
+    strengths, number_vaccines = find_k(adj, g, 'A')
+    plot_k(number_vaccines, strengths, 'Number of vaccine(k) for Policy A')
+
+    print("Find minimum number of vaccine k for policy B......")
+    strengths, number_vaccines = find_k(adj, g, 'B')
+    plot_k(number_vaccines, strengths, 'Number of vaccine(k) for Policy B')
+
+    print("Find minimum number of vaccine k for policy C......")
+    strengths, number_vaccines = find_k(adj, g, 'C')
+    plot_k(number_vaccines, strengths, 'Number of vaccine(k) for Policy C')
+
+    print("Find minimum number of vaccine k for policy D......")
+    strengths, number_vaccines = find_k(adj, g, 'D')
+    plot_k(number_vaccines, strengths, 'Number of vaccine(k) for Policy D')
+
+    # f. simulation for the immunized contact network
+    print("Simulating Policy A........................")
+    seriesA = []
+    for i in range(10):
+        res = simulation(g, beta1, delta1, adj_matrixA)
+        seriesA.append(res)
+    plot_simulation(seriesA, total_node, 'Simulation with β = {} and δ = {} for Policy A'.format(
+        beta1, delta1))
+
+    print("Simulating Policy B........................")
+    seriesB = []
+    for i in range(10):
+        res = simulation(g, beta1, delta1, adj_matrixB)
+        seriesB.append(res)
+    plot_simulation(seriesB, total_node, 'Simulation with β = {} and δ = {} for Policy B'.format(
+        beta1, delta1))
+
+    print("Simulating Policy C........................")
+    seriesC = []
+    for i in range(10):
+        res = simulation(g, beta1, delta1, adj_matrixC)
+        seriesC.append(res)
+    plot_simulation(seriesC, total_node, 'Simulation with β = {} and δ = {} for Policy C'.format(
+        beta1, delta1))
+
+    print("Simulating Policy D........................")
+    seriesD = []
+    for i in range(10):
+        res = simulation(g, beta1, delta1, adj_matrixD)
+        seriesD.append(res)
+    plot_simulation(seriesD, total_node, 'Simulation with β = {} and δ = {} for Policy D'.format(
+        beta1, delta1))
 
 
 if __name__ == "__main__":
